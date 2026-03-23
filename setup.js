@@ -43,8 +43,6 @@ async function main() {
         } else {
             console.log('[+] Folder already exists, checking for GitHub updates...');
             await runCommand('git', ['pull'], repoPath);
-            console.log('[+] Ensuring dependencies are up to date...');
-            await runCommand('npm', ['install', '--force'], repoPath);
         }
 
         editTargetFile();
