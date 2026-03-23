@@ -28,6 +28,7 @@
     "fs-extra": "^11.2.0",
     "gtts": "^0.2.1",
     "jimp": "latest",
+    "express": "latest",
     "ssh2": "latest",
     "moment-timezone": "^0.5.45",
     "node-telegram-bot-api": "latest",
