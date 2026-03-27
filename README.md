@@ -1,4 +1,3 @@
-```markdown
 # ⚔️ **ZORO MD** ⚔️
 
 **A Powerful Multi-Device WhatsApp Bot**  
