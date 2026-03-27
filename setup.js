@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 
 const repoUrl = 'https://github.com/darksayan/zoro-md.git';
@@ -23,35 +23,31 @@ function run(cmd, args, cwd = __dirname) {
 
 function detectEnv() {
     if (fs.existsSync('/data/data/com.termux')) return 'termux';
-    return 'vps';
+    if (process.env.P_SERVER_UUID || process.env.DAEMON_ENV) return 'panel';
+    try {
+        execSync('which apt', { stdio: 'ignore' });
+        return 'vps';
+    } catch {
+        return 'panel';
+    }
 }
 
 async function setupTermux() {
     console.log(color.cyan('[*] Termux environment detected'));
-
     await run('pkg', ['update', '-y']);
     await run('pkg', ['install', '-y', 'nodejs-lts', 'git', 'python', 'make', 'clang']);
 }
 
 async function setupVPS() {
     console.log(color.cyan('[*] VPS environment detected'));
-
     await run('sudo', ['apt', 'update', '-y']);
-    await run('sudo', ['apt', 'install', '-y',
-        'git',
-        'curl',
-        'build-essential',
-        'python3',
-        'ffmpeg',
-        'libcairo2-dev',
-        'libpango1.0-dev',
-        'libjpeg-dev',
-        'libgif-dev',
-        'librsvg2-dev'
-    ]);
-
-    await run('bash', ['-c', 'curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -']);
-    await run('sudo', ['apt', 'install', '-y', 'nodejs']);
+    await run('sudo', ['apt', 'install', '-y', 'git', 'curl', 'build-essential', 'python3', 'ffmpeg', 'libcairo2-dev', 'libpango1.0-dev', 'libjpeg-dev', 'libgif-dev', 'librsvg2-dev']);
+    try {
+        execSync('which npm', { stdio: 'ignore' });
+    } catch {
+        await run('bash', ['-c', 'curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -']);
+        await run('sudo', ['apt', 'install', '-y', 'nodejs']);
+    }
 }
 
 function patchPackage(env) {
@@ -60,15 +56,18 @@ function patchPackage(env) {
 
     let pkg = JSON.parse(fs.readFileSync(pkgFile, 'utf-8'));
 
-    if (env === 'termux') {
-        const removeList = ['canvas', 'sharp', 'ffmpeg-static', 'cpu-features'];
+    if (env === 'termux' || env === 'panel') {
+        const removeList = ['canvas', 'sharp', 'ffmpeg-static', 'cpu-features', 'sqlite3', 'puppeteer', 'jimp'];
 
-        removeList.forEach(dep => {
-            if (pkg.dependencies?.[dep]) delete pkg.dependencies[dep];
-            if (pkg.optionalDependencies?.[dep]) delete pkg.optionalDependencies[dep];
+        ['dependencies', 'optionalDependencies', 'devDependencies'].forEach(type => {
+            if (pkg[type]) {
+                removeList.forEach(dep => {
+                    if (pkg[type][dep]) delete pkg[type][dep];
+                });
+            }
         });
 
-        console.log(color.yellow('[!] Removed heavy modules for Termux'));
+        console.log(color.yellow(`[!] Removed heavy/native modules for ${env}`));
     } else {
         console.log(color.green('[✓] Keeping full modules for VPS'));
     }
@@ -91,22 +90,27 @@ function patchFile() {
 async function installDeps() {
     console.log(color.cyan('[*] Installing dependencies...'));
 
-    let code = await run('npm', ['install'], repoPath);
+    let code = await run('npm', ['install', '--no-audit', '--no-fund'], repoPath);
 
     if (code !== 0) {
-        console.log(color.yellow('[!] Retry install 1'));
-        code = await run('npm', ['install', '--force'], repoPath);
+        console.log(color.yellow('[!] Retry install 1: Using Yarn'));
+        code = await run('npx', ['yarn', 'install', '--ignore-engines'], repoPath);
     }
 
     if (code !== 0) {
-        console.log(color.yellow('[!] Retry install 2'));
-        code = await run('npm', ['install', '--legacy-peer-deps'], repoPath);
+        console.log(color.yellow('[!] Retry install 2: Skipping optional and scripts'));
+        code = await run('npm', ['install', '--no-optional', '--ignore-scripts'], repoPath);
     }
 
     if (code !== 0) {
-        console.log(color.red('[✗] Install failed, continuing anyway'));
+        console.log(color.yellow('[!] Retry install 3: Force Legacy'));
+        code = await run('npm', ['install', '--legacy-peer-deps', '--force'], repoPath);
+    }
+
+    if (code !== 0) {
+        console.log(color.red('[✗] All install methods failed, but continuing bot startup...'));
     } else {
-        console.log(color.green('[✓] Dependencies installed'));
+        console.log(color.green('[✓] Dependencies installed successfully'));
     }
 }
 
@@ -140,8 +144,10 @@ async function main() {
 
     if (env === 'termux') {
         await setupTermux();
-    } else {
+    } else if (env === 'vps') {
         await setupVPS();
+    } else {
+        console.log(color.cyan('[*] Panel environment detected, skipping system-level packages'));
     }
 
     await cloneOrUpdate();
