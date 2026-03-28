@@ -18,7 +18,7 @@
     "group-management",
     "media-downloader"
   ],
-  "author": "SAYAN / VOIDSEC / SABIR7718",
+  "author": "SAYAN",
   "license": "SEE LICENSE IN COPYRIGHT NOTICE",
   "dependencies": {
     "@whiskeysockets/baileys": "latest",
