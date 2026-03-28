@@ -2,7 +2,6 @@ const fs = require('fs');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const https = require('https');
-const unzipper = require('unzipper');
 
 const repoUrl = 'https://github.com/darksayan/zoro-md.git';
 const folderName = 'zoro-md-bot';
@@ -41,13 +40,13 @@ function detectEnv() {
 async function setupTermux() {
     console.log(color.cyan('[*] Termux environment detected'));
     await run('pkg', ['update', '-y']);
-    await run('pkg', ['install', '-y', 'nodejs-lts', 'git', 'python', 'make', 'clang']);
+    await run('pkg', ['install', '-y', 'nodejs-lts', 'git', 'python', 'make', 'clang', 'unzip']);
 }
 
 async function setupVPS() {
     console.log(color.cyan('[*] VPS environment detected'));
     await run('sudo', ['apt', 'update', '-y']);
-    await run('sudo', ['apt', 'install', '-y', 'git', 'curl', 'build-essential', 'python3', 'ffmpeg', 'libcairo2-dev', 'libpango1.0-dev', 'libjpeg-dev', 'libgif-dev', 'librsvg2-dev']);
+    await run('sudo', ['apt', 'install', '-y', 'git', 'curl', 'build-essential', 'python3', 'ffmpeg', 'libcairo2-dev', 'libpango1.0-dev', 'libjpeg-dev', 'libgif-dev', 'librsvg2-dev', 'unzip']);
     try {
         execSync('which npm', { stdio: 'ignore' });
     } catch {
@@ -110,15 +109,17 @@ function downloadNodeZip() {
     });
 }
 
-function extractNodeZip() {
-    return new Promise((resolve, reject) => {
-        console.log(color.cyan('[*] Extracting node.zip...'));
+async function extractNodeZip() {
+    console.log(color.cyan('[*] Extracting node.zip using system unzip...'));
 
-        fs.createReadStream(nodeZipPath)
-            .pipe(unzipper.Extract({ path: nodeExtractPath }))
-            .on('close', resolve)
-            .on('error', reject);
-    });
+    let code = await run('unzip', ['-o', nodeZipPath, '-d', nodeExtractPath]);
+
+    if (code !== 0) {
+        console.log(color.red('[✗] Unzip failed. Make sure "unzip" is installed.'));
+        throw new Error('Unzip failed');
+    }
+
+    console.log(color.green('[✓] Extraction complete'));
 }
 
 async function installDeps() {
