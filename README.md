@@ -3,8 +3,9 @@
 **A Powerful Multi-Device WhatsApp Bot**  
 Made with ❤️ by **@darksayan**
 
-![Zoro MD Banner](https://via.placeholder.com/800x200/0A0A0A/FF4500?text=ZORO+MD+-+WhatsApp+Bot)  
-*(Replace with your actual banner if available)*
+<p align="center">
+  <img src="./SY/Loves.png" alt="Zoro MD Banner" width="800"/>
+</p>
 
 ---
 
